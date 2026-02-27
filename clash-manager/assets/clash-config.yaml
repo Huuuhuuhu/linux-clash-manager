@@ -1,0 +1,85 @@
+# Clash Meta (Mihomo) 基础配置
+# 端口设置
+mixed-port: 7890
+socks-port: 7891
+port: 7892
+allow-lan: true
+bind-address: '*'
+mode: rule
+log-level: info
+ipv6: false
+external-controller: 0.0.0.0:9090
+external-ui: ./ui
+cors:
+  allow-origins:
+    - "*"
+  allow-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+  allow-headers:
+    - Content-Type
+    - Authorization
+secret: "MySuperSecret123"
+
+# 代理提供者（通过订阅链接加载节点列表）
+# 请将 YOUR_SUBSCRIPTION_URL_HERE 替换为你的订阅链接
+proxy-providers:
+  my-proxy:
+    type: http
+    url: "YOUR_SUBSCRIPTION_URL_HERE"
+    interval: 3600
+    path: ./proxy_providers/my-proxy.yaml
+    health-check:
+      enable: true
+      interval: 600
+      url: http://www.gstatic.com/generate_204
+
+# 最小代理组（仅提供手动选择和自动测速）
+proxy-groups:
+  - name: "Proxy"
+    type: select
+    use:
+      - my-proxy
+    proxies:
+      - Auto
+      - DIRECT
+
+  - name: "Auto"
+    type: url-test
+    use:
+      - my-proxy
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+
+# 最小规则集（国内直连，其余走代理）
+rules:
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT
+  - IP-CIDR,192.168.0.0/16,DIRECT
+  - IP-CIDR,10.0.0.0/8,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,Proxy
+
+# DNS 配置
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  fallback:
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
