@@ -2,8 +2,6 @@
 
 在 WSL2 / Ubuntu 服务器上一键部署和管理 Clash Meta (Mihomo) 代理服务的 Agent Skill。
 
-附带魔改 Yacd 面板（自动认证、动态 URL 检测）。
-
 ## 使用方式
 
 将 `clash-manager/` 目录安装为 skill 后，直接对 agent 说：
@@ -14,12 +12,17 @@
 
 ## 网络引导
 
-部署脚本会自动检测网络环境。如果无法访问 GitHub，会提示解决方案：
+部署脚本会自动检测网络环境：
 
-| 场景 | 解决方式 |
+| 场景 | 脚本行为 |
 |------|----------|
-| WSL2 + Windows 已有 Clash | 在 Windows Clash 中开启 TUN 模式，关闭系统代理，WSL2 自动透明代理 |
-| 远程服务器 | 本地 SSH 连接时加 `-R 7890:127.0.0.1:7890` 建立反向隧道 |
+| Clash 已在运行 | 提示已安装，无需重复部署 |
+| 检测到本地代理端口（非 Clash 进程） | 通过该代理（如 SSH -R 隧道）下载安装 |
+| 直连可用（TUN / 海外服务器） | 直连下载安装 |
+| 无网络 + ping 通（DNS 问题） | 自动检测并提示修复 `/etc/resolv.conf` |
+| 无网络 + WSL2 环境 | 提示在 Windows Clash 中开启 TUN 模式 |
+| 无网络 + 远程服务器 | 提示用 SSH `-R` 建立反向隧道 |
+| 无网络 + 无法判断环境 | 同时展示 WSL2 和服务器两种方案 |
 
 ## 仓库结构
 
@@ -36,8 +39,7 @@ clash-manager/
 │   ├── clash-env.sh        # 环境变量管理
 │   └── clash-config-sub.sh # 配置订阅链接
 ├── assets/
-│   ├── clash-config.yaml   # Clash 配置模板
-│   └── yacd-index.html     # 魔改 Yacd 面板
+│   └── clash-config.yaml   # Clash 配置模板
 └── references/
     └── setup-guide.md      # 完整部署教程
 ```

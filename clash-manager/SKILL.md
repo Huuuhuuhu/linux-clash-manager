@@ -9,7 +9,7 @@ Manage and deploy Clash Meta (Mihomo) proxy service in WSL/Ubuntu environments.
 
 ## End-to-End Setup Workflow
 
-When user asks to install/deploy Clash, first determine the environment, then follow the sequence.
+When user asks to install/deploy Clash, follow the sequence below. The setup script auto-detects the environment (WSL2 vs Ubuntu server) and provides tailored guidance.
 
 ### Bootstrap: Solving the Chicken-and-Egg Problem
 
@@ -17,18 +17,13 @@ Installing Clash requires downloading from GitHub, but the user may not have net
 
 1. **Local port probe** (127.0.0.1:7890/7897) — covers SSH reverse tunnel and existing local proxy
 2. **Direct connection test** — covers TUN mode and overseas servers
+3. **Environment detection** — detects WSL2 (via `/proc/version` containing "microsoft"/"WSL") vs Ubuntu server
+4. **DNS diagnostics** — if ping succeeds but curl fails, suggests DNS fix
 
-If none work, guide the user:
-
-- **WSL2**: Enable TUN mode in Windows Clash client, disable system proxy. WSL2 traffic is transparently proxied, no config needed in WSL at all.
-- **Remote Ubuntu server**: User should SSH with reverse tunnel from their local machine:
-  ```bash
-  # On local machine (the one with proxy):
-  ssh -R 7890:127.0.0.1:7890 user@remote-server
-  # Then on server, 127.0.0.1:7890 tunnels back to local proxy
-  ```
-  Then run: `bash <skill-dir>/scripts/clash-setup.sh`
-  The script will auto-detect the tunneled port.
+If network is blocked, the script provides environment-specific guidance:
+- **WSL2**: Enable TUN mode in Windows Clash client, disable system proxy
+- **Ubuntu server**: SSH with reverse tunnel from local machine
+- **Unknown environment**: Shows both options
 
 ### Setup Sequence
 
@@ -108,17 +103,17 @@ curl --proxy http://127.0.0.1:$CLASH_PORT -I https://google.com
 - Check Windows Firewall allows port 9090
 
 **Setup script download fails (no network):**
-- WSL2: enable TUN mode in Windows Clash, disable system proxy, WSL transparently proxied
-- Remote server: SSH with `-R <port>:127.0.0.1:<port>` to create reverse tunnel (port from user's local Clash config)
+- The script auto-detects your environment and provides tailored guidance
+- WSL2: enable TUN mode in Windows Clash, disable system proxy
+- Remote server: SSH with `-R <port>:127.0.0.1:<port>` to create reverse tunnel
+- If ping works but curl fails, the script will detect DNS issues and suggest fixes automatically
 
 **TUN mode enabled but curl times out (DNS issue):**
-- Symptom: `ping github.com` works but `curl https://github.com` hangs on "Resolving"
-- Cause: WSL auto-generated `/etc/resolv.conf` points to an internal/corporate DNS that doesn't work under TUN mode
-- The setup script now auto-detects this and prints fix commands. If encountered manually:
+- The setup script now auto-detects this (ping succeeds but curl fails)
+- It will suggest the DNS fix commands automatically
+- Manual fix if needed:
   ```bash
-  # Disable WSL auto-generation of resolv.conf
   sudo bash -c 'echo -e "\n[network]\ngenerateResolvConf = false" >> /etc/wsl.conf'
-  # Replace with public DNS
   sudo rm /etc/resolv.conf
   sudo bash -c 'echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" > /etc/resolv.conf'
   ```

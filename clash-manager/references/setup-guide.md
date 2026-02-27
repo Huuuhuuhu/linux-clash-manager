@@ -14,7 +14,7 @@
 bash <skill-dir>/scripts/clash-setup.sh
 ```
 
-脚本会自动完成：下载 Clash 二进制、创建配置目录、复制配置模板、下载 Yacd 面板并应用魔改、下载 GeoIP 数据库。
+脚本会自动完成：下载 Clash 二进制、创建配置目录、复制配置模板、下载 Yacd 面板、下载 GeoIP 数据库。
 
 部署完成后，编辑 `~/.config/clash/config.yaml`，将 `YOUR_SUBSCRIPTION_URL_HERE` 替换为订阅链接。或使用脚本：
 
@@ -52,9 +52,6 @@ wget https://github.com/haishanh/yacd/archive/gh-pages.zip -O yacd.zip
 unzip -q yacd.zip
 mv yacd-gh-pages/* ~/.config/clash/ui/
 rm -rf yacd-gh-pages yacd.zip
-
-# 用魔改 index.html 覆盖
-cp <skill-dir>/assets/yacd-index.html ~/.config/clash/ui/index.html
 
 # 下载 GeoIP 数据库
 cd ~/.config/clash
@@ -98,18 +95,9 @@ curl --proxy http://127.0.0.1:7890 -I https://google.com
 ### CORS 跨域配置
 `config.yaml` 中启用 CORS，允许浏览器跨域访问 API。
 
-### 动态后端地址检测
-修改 Yacd 的 `index.html`，自动从浏览器地址栏获取 API Base URL，不再硬编码 `127.0.0.1`。
-
-### 自动认证注入
-在 Yacd 中注入脚本，自动为所有 API 请求添加 `Authorization: Bearer` 头，自动为 WebSocket 添加 token 参数。
-
-### 预设配置保存
-自动将 API URL 和 Secret 保存到浏览器 localStorage，刷新页面后无需重新配置。
-
 ## 注意事项
 
 1. **WSL IP 会变化**：每次重启 WSL 后 IP 可能改变，使用 `clash-url` 脚本获取最新地址
 2. **Windows 防火墙**：确保允许访问 WSL 的 9090 端口
 3. **订阅链接安全**：不要将包含真实 token 的订阅链接上传到公共仓库
-4. **Secret 同步**：`clash-config.yaml` 和 `yacd-index.html` 中的 Secret 默认都是 `MySuperSecret123`，修改一个必须同步修改另一个
+4. **Secret**：`config.yaml` 中的 Secret 默认是 `MySuperSecret123`，Yacd 面板首次连接时需要手动输入

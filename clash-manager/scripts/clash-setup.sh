@@ -15,6 +15,18 @@ get_clash_port() {
 }
 CLASH_PORT=$(get_clash_port)
 
+# 检测运行环境: wsl2 | server | unknown
+detect_environment() {
+    if grep -qi 'microsoft\|wsl' /proc/version 2>/dev/null; then
+        echo "wsl2"
+    elif [ -f /proc/version ]; then
+        echo "server"
+    else
+        echo "unknown"
+    fi
+}
+ENV_TYPE=$(detect_environment)
+
 # 解析参数：允许用户手动指定代理
 BOOTSTRAP_PROXY=""
 while [[ $# -gt 0 ]]; do
@@ -25,7 +37,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 自动检测网络状况
-# 返回值通过全局变量: NETWORK_STATUS = "proxy" | "direct" | "blocked" | "dns_broken"
+# 返回值通过全局变量: NETWORK_STATUS = "proxy" | "direct" | "dns_broken" | "blocked" | "clash_running"
 # 如果是 proxy，PROXY 会被设置
 detect_network() {
     PROXY=""
@@ -40,8 +52,13 @@ detect_network() {
     # 检测 1: 本地端口（SSH -R 反向隧道 或 已有本地代理）
     for port in 7890 7897; do
         if curl -s --connect-timeout 2 --proxy "http://127.0.0.1:${port}" https://www.google.com > /dev/null 2>&1; then
-            PROXY="http://127.0.0.1:${port}"
-            NETWORK_STATUS="proxy"
+            # 区分：是本地 Clash 在跑，还是 SSH -R 隧道
+            if pgrep -x clash > /dev/null 2>&1; then
+                NETWORK_STATUS="clash_running"
+            else
+                PROXY="http://127.0.0.1:${port}"
+                NETWORK_STATUS="proxy"
+            fi
             return
         fi
     done
@@ -50,11 +67,12 @@ detect_network() {
         NETWORK_STATUS="direct"
         return
     fi
-    # 检测 3: DNS 诊断 — ping 能通但 curl 超时，说明 TUN 生效但 DNS 解析有问题
-    if ping -c 1 -W 3 github.com > /dev/null 2>&1; then
+    # 检测 3: DNS 诊断 — ping 通但 curl 不通，说明网络层通但 DNS/HTTPS 有问题
+    if ping -c 1 -W 2 github.com > /dev/null 2>&1; then
         NETWORK_STATUS="dns_broken"
         return
     fi
+    # 全部失败 → blocked
 }
 
 echo "=== Clash Meta WSL/Ubuntu 一键部署 ==="
@@ -64,6 +82,15 @@ echo "→ 检测网络环境..."
 detect_network
 
 case "$NETWORK_STATUS" in
+    clash_running)
+        echo "✓ Clash 已在运行中，无需重新安装"
+        echo ""
+        echo "如需管理 Clash，可使用以下命令："
+        echo "  状态: bash $SCRIPT_DIR/clash-status.sh"
+        echo "  停止: bash $SCRIPT_DIR/clash-stop.sh"
+        echo "  面板: bash $SCRIPT_DIR/clash-url.sh"
+        exit 0
+        ;;
     proxy)
         echo "✓ 检测到可用代理: $PROXY"
         export http_proxy="$PROXY"
@@ -74,40 +101,47 @@ case "$NETWORK_STATUS" in
         ;;
     dns_broken)
         echo ""
-        echo "✗ 检测到 TUN 模式已生效（ping 通），但 curl DNS 解析超时"
+        echo "⚠ 检测到 DNS 问题：ping 通但 HTTPS 访问失败"
         echo ""
-        echo "这通常是 WSL 的 /etc/resolv.conf 指向了内网 DNS 导致的。"
+        echo "这通常是 WSL2 的 /etc/resolv.conf 指向了内网 DNS 导致的。"
         echo "请执行以下命令修复："
         echo ""
-        echo "  # 1. 禁止 WSL 自动生成 resolv.conf"
-        echo "  sudo bash -c 'grep -q \"\\[network\\]\" /etc/wsl.conf && sed -i \"/\\[network\\]/a generateResolvConf = false\" /etc/wsl.conf || echo -e \"\\n[network]\\ngenerateResolvConf = false\" >> /etc/wsl.conf'"
-        echo ""
-        echo "  # 2. 替换 DNS 为公共 DNS"
+        echo "  sudo bash -c 'echo -e \"\\n[network]\\ngenerateResolvConf = false\" >> /etc/wsl.conf'"
         echo "  sudo rm /etc/resolv.conf"
         echo "  sudo bash -c 'echo -e \"nameserver 8.8.8.8\\nnameserver 8.8.4.4\" > /etc/resolv.conf'"
         echo ""
-        echo "  # 3. 验证"
-        echo "  curl -sI --connect-timeout 5 https://github.com | head -3"
-        echo ""
-        echo "修复后重新运行本脚本。"
+        echo "修复后重新运行本脚本"
         exit 1
         ;;
     blocked)
         echo ""
         echo "✗ 网络不可用：无法访问 GitHub"
         echo ""
+
+        # 按环境给出针对性建议
         echo "安装 Clash 需要从 GitHub 下载文件，请先解决网络问题："
         echo ""
-        echo "  【WSL2 用户】"
-        echo "    在 Windows 端的 Clash 客户端中开启 TUN 模式，关闭系统代理"
-        echo "    开启后 WSL2 的所有流量会自动透明代理，无需额外配置"
-        echo "    然后重新运行本脚本"
-        echo ""
-        echo "  【远程服务器用户】"
-        echo "    从你的本地电脑（有代理的那台）用以下命令连接服务器："
-        echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
-        echo "    这会把服务器的 127.0.0.1:${CLASH_PORT} 转发到你本地的代理端口"
-        echo "    然后重新运行本脚本，会自动检测到隧道代理"
+
+        if [ "$ENV_TYPE" = "wsl2" ]; then
+            echo "  【WSL2 环境】"
+            echo "    在 Windows 端的 Clash 客户端中开启 TUN 模式，关闭系统代理"
+            echo "    开启后 WSL2 的所有流量会自动透明代理，无需额外配置"
+            echo "    然后重新运行本脚本"
+            echo ""
+            echo "  如果 Windows 上没有 Clash 客户端，也可以用 SSH 反向隧道："
+            echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@this-wsl"
+        elif [ "$ENV_TYPE" = "server" ]; then
+            echo "  【远程服务器环境】"
+            echo "    从你的本地电脑（有代理的那台）用以下命令连接服务器："
+            echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
+            echo "    这会把服务器的 127.0.0.1:${CLASH_PORT} 转发到你本地的代理端口"
+            echo "    然后重新运行本脚本，会自动检测到隧道代理"
+        else
+            echo "  【无法判断环境】"
+            echo "    方案 1 - WSL2: 在 Windows 端开启 Clash TUN 模式"
+            echo "    方案 2 - 远程服务器: 用 SSH -R 建立反向隧道"
+            echo "      ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
+        fi
         echo ""
         exit 1
         ;;
@@ -203,11 +237,12 @@ PROXY_BLOCK_START="# >>> clash proxy >>>"
 PROXY_BLOCK_END="# <<< clash proxy <<<"
 if ! grep -q "$PROXY_BLOCK_START" ~/.bashrc 2>/dev/null; then
     echo "→ 写入代理环境变量到 ~/.bashrc..."
-    cat >> ~/.bashrc << BASHRC_EOF
+    cat >> ~/.bashrc << 'BASHRC_EOF'
 
 # >>> clash proxy >>>
 # Clash Meta 代理（由 clash-setup.sh 自动添加）
 if pgrep -x clash > /dev/null 2>&1; then
+    CLASH_PORT=$(grep '^mixed-port:' ~/.config/clash/config.yaml 2>/dev/null | awk '{print $2}' || echo "7890")
     export http_proxy="http://127.0.0.1:${CLASH_PORT}"
     export https_proxy="http://127.0.0.1:${CLASH_PORT}"
     export HTTP_PROXY="http://127.0.0.1:${CLASH_PORT}"
