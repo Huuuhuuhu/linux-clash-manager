@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 自动检测网络状况
-# 返回值通过全局变量: NETWORK_STATUS = "proxy" | "direct" | "dns_broken" | "blocked" | "clash_running"
+# 返回值通过全局变量: NETWORK_STATUS = "proxy" | "direct" | "dns_broken" | "no_tun" | "blocked" | "clash_running"
 # 如果是 proxy，PROXY 会被设置
 detect_network() {
     PROXY=""
@@ -67,9 +67,18 @@ detect_network() {
         NETWORK_STATUS="direct"
         return
     fi
-    # 检测 3: DNS 诊断 — ping 通但 curl 不通，说明网络层通但 DNS/HTTPS 有问题
+    # 检测 3: ping 通但 curl 不通 — 需要区分 DNS 问题和 TUN 未开启
+    # ping 通说明 DNS 解析正常（ping 需要先解析域名），所以不一定是 DNS 问题
+    # ICMP（ping）和 TCP（curl）走不同路径：没开 TUN 时 ICMP 可能通但 TCP 被阻断
     if ping -c 1 -W 2 github.com > /dev/null 2>&1; then
-        NETWORK_STATUS="dns_broken"
+        # 进一步测试 TCP 连接来区分
+        if timeout 3 bash -c 'echo > /dev/tcp/github.com/443' 2>/dev/null; then
+            # TCP 连通但 HTTPS 失败 → DNS 或 TLS 层面的问题
+            NETWORK_STATUS="dns_broken"
+        else
+            # TCP 也不通 → 不是 DNS 问题，是 TCP 被阻断（WSL2 未开 TUN）
+            NETWORK_STATUS="no_tun"
+        fi
         return
     fi
     # 全部失败 → blocked
@@ -101,7 +110,7 @@ case "$NETWORK_STATUS" in
         ;;
     dns_broken)
         echo ""
-        echo "⚠ 检测到 DNS 问题：ping 通但 HTTPS 访问失败"
+        echo "⚠ 检测到 DNS/TLS 问题：TCP 连通但 HTTPS 访问失败"
         echo ""
         echo "这通常是 WSL2 的 /etc/resolv.conf 指向了内网 DNS 导致的。"
         echo "请执行以下命令修复："
@@ -111,6 +120,35 @@ case "$NETWORK_STATUS" in
         echo "  sudo bash -c 'echo -e \"nameserver 8.8.8.8\\nnameserver 8.8.4.4\" > /etc/resolv.conf'"
         echo ""
         echo "修复后重新运行本脚本"
+        exit 1
+        ;;
+    no_tun)
+        echo ""
+        echo "⚠ 检测到 TCP 被阻断：ping 通但 TCP 连接失败"
+        echo ""
+        echo "ICMP（ping）能通但 TCP 不通，说明不是 DNS 问题，"
+        echo "而是 WSL2 的 TCP/HTTPS 流量没有被代理。"
+        echo ""
+        if [ "$ENV_TYPE" = "wsl2" ]; then
+            echo "请在 Windows 端的 Clash 客户端中："
+            echo "  1. 开启 TUN 模式（Service Mode）"
+            echo "  2. 关闭系统代理（System Proxy）"
+            echo ""
+            echo "开启 TUN 后 WSL2 的所有流量会自动透明代理，无需额外配置。"
+            echo ""
+            echo "如果 Windows 上没有 Clash 客户端，也可以用 SSH 反向隧道："
+            echo "  ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@this-wsl"
+        elif [ "$ENV_TYPE" = "server" ]; then
+            echo "请从你的本地电脑（有代理的那台）用以下命令连接服务器："
+            echo "  ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
+            echo "  这会把服务器的 127.0.0.1:${CLASH_PORT} 转发到你本地的代理端口"
+        else
+            echo "  方案 1 - WSL2: 在 Windows 端开启 Clash TUN 模式，关闭系统代理"
+            echo "  方案 2 - 远程服务器: 用 SSH -R 建立反向隧道"
+            echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
+        fi
+        echo ""
+        echo "操作后重新运行本脚本"
         exit 1
         ;;
     blocked)

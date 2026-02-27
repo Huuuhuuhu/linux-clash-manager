@@ -18,7 +18,7 @@ Installing Clash requires downloading from GitHub, but the user may not have net
 1. **Local port probe** (127.0.0.1:7890/7897) — covers SSH reverse tunnel and existing local proxy
 2. **Direct connection test** — covers TUN mode and overseas servers
 3. **Environment detection** — detects WSL2 (via `/proc/version` containing "microsoft"/"WSL") vs Ubuntu server
-4. **DNS diagnostics** — if ping succeeds but curl fails, suggests DNS fix
+4. **TCP/DNS diagnostics** — if ping succeeds but curl fails, further tests TCP connectivity to distinguish between TUN not enabled (TCP blocked) and DNS/TLS issues
 
 If network is blocked, the script provides environment-specific guidance:
 - **WSL2**: Enable TUN mode in Windows Clash client, disable system proxy
@@ -106,10 +106,17 @@ curl --proxy http://127.0.0.1:$CLASH_PORT -I https://google.com
 - The script auto-detects your environment and provides tailored guidance
 - WSL2: enable TUN mode in Windows Clash, disable system proxy
 - Remote server: SSH with `-R <port>:127.0.0.1:<port>` to create reverse tunnel
-- If ping works but curl fails, the script will detect DNS issues and suggest fixes automatically
+- If ping works but curl fails, the script tests TCP connectivity to distinguish:
+  - TCP also fails → TUN not enabled (recommends enabling TUN mode)
+  - TCP works but HTTPS fails → DNS/TLS issue (recommends fixing resolv.conf)
+
+**TUN mode not enabled (ping works, TCP blocked):**
+- The setup script detects this as `no_tun` status
+- Recommends enabling TUN mode in Windows Clash client and disabling system proxy
+- Alternative: SSH reverse tunnel
 
 **TUN mode enabled but curl times out (DNS issue):**
-- The setup script now auto-detects this (ping succeeds but curl fails)
+- The setup script detects this as `dns_broken` (TCP connects but HTTPS fails)
 - It will suggest the DNS fix commands automatically
 - Manual fix if needed:
   ```bash

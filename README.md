@@ -19,7 +19,8 @@
 | Clash 已在运行 | 提示已安装，无需重复部署 |
 | 检测到本地代理端口（非 Clash 进程） | 通过该代理（如 SSH -R 隧道）下载安装 |
 | 直连可用（TUN / 海外服务器） | 直连下载安装 |
-| 无网络 + ping 通（DNS 问题） | 自动检测并提示修复 `/etc/resolv.conf` |
+| 无网络 + ping 通 + TCP 不通（TUN 未开启） | 提示在 Windows Clash 中开启 TUN 模式 |
+| 无网络 + ping 通 + TCP 通（DNS/TLS 问题） | 自动检测并提示修复 `/etc/resolv.conf` |
 | 无网络 + WSL2 环境 | 提示在 Windows Clash 中开启 TUN 模式 |
 | 无网络 + 远程服务器 | 提示用 SSH `-R` 建立反向隧道 |
 | 无网络 + 无法判断环境 | 同时展示 WSL2 和服务器两种方案 |
