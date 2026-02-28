@@ -52,7 +52,7 @@ curl --proxy http://127.0.0.1:${CLASH_PORT} -I https://google.com
 After this, user opens the web panel URL in browser.
 
 **Important: Yacd first-time use** — The panel may not auto-connect to the backend. If user sees an empty page or "Unauthorized" error:
-1. Look for a "Switch Backend" or gear icon in the panel
+1. Look for a "切换后端" (Switch Backend) or gear icon in the panel
 2. Enter API Base URL: `http://<WSL_IP>:9090` and Secret: `MySuperSecret123`
 3. Click Add/Connect
 
@@ -66,6 +66,14 @@ Status: `bash <skill-dir>/scripts/clash-status.sh`
 Toggle: `bash <skill-dir>/scripts/clash-toggle.sh`
 Web panel URL: `bash <skill-dir>/scripts/clash-url.sh`
 Configure subscription: `bash <skill-dir>/scripts/clash-config-sub.sh "URL"`
+
+**Important: After switching subscription URL**, you must delete the cached proxy provider file and restart Clash:
+```bash
+rm -f ~/.config/clash/proxy_providers/my-proxy.yaml
+bash <skill-dir>/scripts/clash-stop.sh
+bash <skill-dir>/scripts/clash-start.sh
+```
+This is because Clash caches the proxy list locally. Without deleting the cache, the old subscription nodes will persist even after config update.
 
 ## Proxy Persistence
 
@@ -127,7 +135,7 @@ curl --proxy http://127.0.0.1:$CLASH_PORT -I https://google.com
 
 **Yacd panel shows empty / no proxies / "Unauthorized":**
 - This is normal on first use. The panel needs to be manually connected to the backend.
-- Click "Switch Backend" or the gear icon, enter API Base URL (`http://<WSL_IP>:9090`) and Secret (`MySuperSecret123`), then click Add.
+- Click "切换后端" (Switch Backend) or the gear icon, enter API Base URL (`http://<WSL_IP>:9090`) and Secret (`MySuperSecret123`), then click Add.
 
 **Ports not accessible:**
 - Check `allow-lan: true` and `bind-address: '*'` in config.yaml
