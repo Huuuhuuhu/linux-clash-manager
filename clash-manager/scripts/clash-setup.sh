@@ -270,15 +270,13 @@ if [ ! -f geosite.dat ]; then
 fi
 echo "✓ GeoIP 数据库就绪"
 
-# 7. 配置代理环境变量持久化（写入 ~/.bashrc）
-PROXY_BLOCK_START="# >>> clash proxy >>>"
-PROXY_BLOCK_END="# <<< clash proxy <<<"
-if ! grep -q "$PROXY_BLOCK_START" ~/.bashrc 2>/dev/null; then
-    echo "→ 写入代理环境变量到 ~/.bashrc..."
-    cat >> ~/.bashrc << 'BASHRC_EOF'
-
-# >>> clash proxy >>>
-# Clash Meta 代理（由 clash-setup.sh 自动添加）
+# 7. 配置代理环境变量持久化（写入 /etc/profile.d/ 让所有用户生效）
+PROFILE_SCRIPT="/etc/profile.d/clash-proxy.sh"
+if [ ! -f "$PROFILE_SCRIPT" ]; then
+    echo "→ 写入代理环境变量到 /etc/profile.d/ (所有用户生效)..."
+    sudo bash -c "cat > $PROFILE_SCRIPT" << 'PROFILE_EOF'
+# Clash Meta 代理环境变量（由 clash-setup.sh 自动添加）
+# 当 Clash 进程运行时，所有用户的新 shell 自动设置代理环境变量
 if pgrep -x clash > /dev/null 2>&1; then
     CLASH_PORT=$(grep '^mixed-port:' ~/.config/clash/config.yaml 2>/dev/null | awk '{print $2}' || echo "7890")
     export http_proxy="http://127.0.0.1:${CLASH_PORT}"
@@ -287,11 +285,10 @@ if pgrep -x clash > /dev/null 2>&1; then
     export HTTPS_PROXY="http://127.0.0.1:${CLASH_PORT}"
     export no_proxy="localhost,127.0.0.1,::1"
 fi
-# <<< clash proxy <<<
-BASHRC_EOF
-    echo "✓ 代理环境变量已写入 ~/.bashrc（Clash 运行时自动生效）"
+PROFILE_EOF
+    echo "✓ 代理环境变量已写入 /etc/profile.d/clash-proxy.sh（所有用户生效）"
 else
-    echo "✓ ~/.bashrc 代理配置已存在"
+    echo "✓ /etc/profile.d/clash-proxy.sh 已存在"
 fi
 
 # 8. 配置 git 全局代理

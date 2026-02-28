@@ -79,23 +79,25 @@ This is because Clash caches the proxy list locally. Without deleting the cache,
 
 The setup script automatically configures:
 
-1. **~/.bashrc**: Adds conditional proxy env vars — when Clash is running, every new shell (including shells spawned by opencode/claude-code) automatically gets `http_proxy`/`https_proxy` set. When Clash is stopped, env vars are not set.
-2. **Git global proxy**: `git config --global http.proxy` is set so git commands always use proxy.
+1. **/etc/profile.d/clash-proxy.sh**: Adds conditional proxy env vars for **all users** — when Clash is running, every new shell (including shells spawned by opencode/claude-code) automatically gets `http_proxy`/`https_proxy` set. When Clash is stopped, env vars are not set.
+2. **Git global proxy**: `git config --global http.proxy` is set for the user who runs setup (typically root).
 3. **Clash daemon**: Runs as background process, persists across terminal sessions. No need to restart when opening new terminals.
 
-So: Clash 启动一次就行，新开终端/SSH 会话不需要重新启动。代理环境变量通过 bashrc 自动注入。
+**Multi-user setup**: If Clash is installed by root (e.g., via SSH as root), all users can use the proxy through port 7890 and access the web panel on port 9090. However, only root can manage Clash (start/stop/configure). This is the recommended setup for servers.
+
+So: Clash 启动一次就行，新开终端/SSH 会话不需要重新启动。代理环境变量通过 /etc/profile.d/ 自动注入到所有用户。
 
 ### Using proxy in opencode/claude-code
 
 All scripts read the proxy port from `~/.config/clash/config.yaml` (`mixed-port` field). No hardcoded ports.
 
-Each bash command in opencode runs in a separate shell. Since bashrc is sourced, proxy env vars are available IF Clash is running. For explicit proxy usage:
+Each bash command in opencode runs in a separate shell. Since /etc/profile.d/ is sourced, proxy env vars are available IF Clash is running. For explicit proxy usage:
 
 ```bash
 # curl: use --proxy flag (most reliable)
 curl --proxy http://127.0.0.1:$CLASH_PORT -I https://google.com
 
-# wget/git/pip: env vars from bashrc work automatically
+# wget/git/pip: env vars from /etc/profile.d/ work automatically
 ```
 
 ## Bundled Resources
