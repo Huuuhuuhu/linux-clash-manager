@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLASH_BIN="${HOME}/.local/bin/clash"
 CLASH_CONFIG_DIR="${HOME}/.config/clash"
 CLASH_PID_FILE="/tmp/clash.pid"
-CLASH_PORT=$(grep '^mixed-port:' "$CLASH_CONFIG_DIR/config.yaml" 2>/dev/null | awk '{print $2}' || echo "7890")
 
 if [ ! -f "$CLASH_BIN" ]; then
     echo "✗ Error: Clash binary not found at $CLASH_BIN"
@@ -49,7 +48,7 @@ if ps -p "$CLASH_PID" > /dev/null 2>&1; then
     echo "  Secret: MySuperSecret123"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "Proxy: 127.0.0.1:${CLASH_PORT}"
+    echo "Proxy: 127.0.0.1:7890"
     echo ""
     echo "Quick commands:"
     echo "  Check status:  bash $SCRIPT_DIR/clash-status.sh"

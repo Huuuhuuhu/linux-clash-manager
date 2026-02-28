@@ -7,14 +7,6 @@ SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLASH_DIR="$HOME/.config/clash"
 
-# 从配置模板读取端口（部署前用模板，部署后用实际配置）
-get_clash_port() {
-    local config="${CLASH_DIR}/config.yaml"
-    [ -f "$config" ] || config="${SKILL_DIR}/assets/clash-config.yaml"
-    grep '^mixed-port:' "$config" 2>/dev/null | awk '{print $2}' || echo "7890"
-}
-CLASH_PORT=$(get_clash_port)
-
 # 检测运行环境: wsl2 | server | unknown
 detect_environment() {
     if grep -qi 'microsoft\|wsl' /proc/version 2>/dev/null; then
@@ -137,15 +129,15 @@ case "$NETWORK_STATUS" in
             echo "开启 TUN 后 WSL2 的所有流量会自动透明代理，无需额外配置。"
             echo ""
             echo "如果 Windows 上没有 Clash 客户端，也可以用 SSH 反向隧道："
-            echo "  ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@this-wsl"
+            echo "  ssh -R 7890:127.0.0.1:7890 user@this-wsl"
         elif [ "$ENV_TYPE" = "server" ]; then
             echo "请从你的本地电脑（有代理的那台）用以下命令连接服务器："
-            echo "  ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
-            echo "  这会把服务器的 127.0.0.1:${CLASH_PORT} 转发到你本地的代理端口"
+            echo "  ssh -R 7890:127.0.0.1:7890 user@your-server"
+            echo "  这会把服务器的 127.0.0.1:7890 转发到你本地的代理端口"
         else
             echo "  方案 1 - WSL2: 在 Windows 端开启 Clash TUN 模式，关闭系统代理"
             echo "  方案 2 - 远程服务器: 用 SSH -R 建立反向隧道"
-            echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
+            echo "    ssh -R 7890:127.0.0.1:7890 user@your-server"
         fi
         echo ""
         echo "操作后重新运行本脚本"
@@ -167,18 +159,18 @@ case "$NETWORK_STATUS" in
             echo "    然后重新运行本脚本"
             echo ""
             echo "  如果 Windows 上没有 Clash 客户端，也可以用 SSH 反向隧道："
-            echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@this-wsl"
+            echo "    ssh -R 7890:127.0.0.1:7890 user@this-wsl"
         elif [ "$ENV_TYPE" = "server" ]; then
             echo "  【远程服务器环境】"
             echo "    从你的本地电脑（有代理的那台）用以下命令连接服务器："
-            echo "    ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
-            echo "    这会把服务器的 127.0.0.1:${CLASH_PORT} 转发到你本地的代理端口"
+            echo "    ssh -R 7890:127.0.0.1:7890 user@your-server"
+            echo "    这会把服务器的 127.0.0.1:7890 转发到你本地的代理端口"
             echo "    然后重新运行本脚本，会自动检测到隧道代理"
         else
             echo "  【无法判断环境】"
             echo "    方案 1 - WSL2: 在 Windows 端开启 Clash TUN 模式"
             echo "    方案 2 - 远程服务器: 用 SSH -R 建立反向隧道"
-            echo "      ssh -R ${CLASH_PORT}:127.0.0.1:${CLASH_PORT} user@your-server"
+            echo "      ssh -R 7890:127.0.0.1:7890 user@your-server"
         fi
         echo ""
         exit 1
@@ -278,11 +270,10 @@ if [ ! -f "$PROFILE_SCRIPT" ]; then
 # Clash Meta 代理环境变量（由 clash-setup.sh 自动添加）
 # 当 Clash 进程运行时，所有用户的新 shell 自动设置代理环境变量
 if pgrep -x clash > /dev/null 2>&1; then
-    CLASH_PORT=$(grep '^mixed-port:' ~/.config/clash/config.yaml 2>/dev/null | awk '{print $2}' || echo "7890")
-    export http_proxy="http://127.0.0.1:${CLASH_PORT}"
-    export https_proxy="http://127.0.0.1:${CLASH_PORT}"
-    export HTTP_PROXY="http://127.0.0.1:${CLASH_PORT}"
-    export HTTPS_PROXY="http://127.0.0.1:${CLASH_PORT}"
+    export http_proxy="http://127.0.0.1:7890"
+    export https_proxy="http://127.0.0.1:7890"
+    export HTTP_PROXY="http://127.0.0.1:7890"
+    export HTTPS_PROXY="http://127.0.0.1:7890"
     export no_proxy="localhost,127.0.0.1,::1"
 fi
 PROFILE_EOF
@@ -292,8 +283,8 @@ else
 fi
 
 # 8. 配置 git 全局代理
-git config --global http.proxy http://127.0.0.1:${CLASH_PORT}
-git config --global https.proxy http://127.0.0.1:${CLASH_PORT}
+git config --global http.proxy http://127.0.0.1:7890
+git config --global https.proxy http://127.0.0.1:7890
 echo "✓ Git 全局代理已配置"
 
 # 完成

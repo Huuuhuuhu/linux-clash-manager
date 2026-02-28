@@ -43,10 +43,9 @@ bash <skill-dir>/scripts/clash-start.sh
 ```bash
 bash <skill-dir>/scripts/clash-url.sh
 ```
-5. Verify proxy works (port is read from config.yaml `mixed-port`, default 7890):
+5. Verify proxy works:
 ```bash
-CLASH_PORT=$(grep '^mixed-port:' ~/.config/clash/config.yaml | awk '{print $2}')
-curl --proxy http://127.0.0.1:${CLASH_PORT} -I https://google.com
+curl --proxy http://127.0.0.1:7890 -I https://google.com
 ```
 
 After this, user opens the web panel URL in browser.
@@ -89,13 +88,13 @@ So: Clash 启动一次就行，新开终端/SSH 会话不需要重新启动。�
 
 ### Using proxy in opencode/claude-code
 
-All scripts read the proxy port from `~/.config/clash/config.yaml` (`mixed-port` field). No hardcoded ports.
+All scripts use the fixed proxy port 7890.
 
 Each bash command in opencode runs in a separate shell. Since /etc/profile.d/ is sourced, proxy env vars are available IF Clash is running. For explicit proxy usage:
 
 ```bash
 # curl: use --proxy flag (most reliable)
-curl --proxy http://127.0.0.1:$CLASH_PORT -I https://google.com
+curl --proxy http://127.0.0.1:7890 -I https://google.com
 
 # wget/git/pip: env vars from /etc/profile.d/ work automatically
 ```
