@@ -52,8 +52,13 @@ After this, user opens the web panel URL in browser.
 
 **Important: Yacd first-time use** — The panel may not auto-connect to the backend. If user sees an empty page or "Unauthorized" error:
 1. Look for a "切换后端" (Switch Backend) or gear icon in the panel
-2. Enter API Base URL: `http://<WSL_IP>:9090` and Secret: `MySuperSecret123`
+2. Enter API Base URL and Secret:
+   - **WSL environment**: `http://<WSL_IP>:9090` (get IP from `clash-url.sh`)
+   - **Remote server**: `http://<SERVER_PUBLIC_IP>:9090` (use server's public IP, NOT `localhost`)
+   - **Secret**: `MySuperSecret123`
+   - **Why not localhost?** Yacd is a frontend app running in your browser. When you fill `localhost`, it refers to YOUR computer, not the server. Always use the server's actual IP address.
 3. Click Add/Connect
+4. **If redirected to error page after connecting**, simply revisit the `/ui` URL to reload the panel
 
 Once connected, select a node and proxy is ready.
 
@@ -136,7 +141,10 @@ curl --proxy http://127.0.0.1:7890 -I https://google.com
 
 **Yacd panel shows empty / no proxies / "Unauthorized":**
 - This is normal on first use. The panel needs to be manually connected to the backend.
-- Click "切换后端" (Switch Backend) or the gear icon, enter API Base URL (`http://<WSL_IP>:9090`) and Secret (`MySuperSecret123`), then click Add.
+- Click "切换后端" (Switch Backend) or the gear icon, enter API Base URL and Secret (`MySuperSecret123`), then click Add.
+  - WSL: use `http://<WSL_IP>:9090`
+  - Remote server: use `http://<SERVER_PUBLIC_IP>:9090` (NOT `localhost` — Yacd runs in your browser, so `localhost` points to your local machine)
+- If the page redirects to an error page after switching backend, revisit `http://<IP>:9090/ui` to reload the panel.
 
 **Ports not accessible:**
 - Check `allow-lan: true` and `bind-address: '*'` in config.yaml
