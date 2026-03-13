@@ -107,8 +107,10 @@ case "$NETWORK_STATUS" in
         echo "这通常是 WSL2 的 /etc/resolv.conf 指向了内网 DNS 导致的。"
         echo "请执行以下命令修复："
         echo ""
-        echo "  sudo bash -c 'echo -e \"\\n[network]\\ngenerateResolvConf = false\" >> /etc/wsl.conf'"
-        echo "  sudo rm /etc/resolv.conf"
+        echo "  # 1. 禁用 WSL 自动生成 resolv.conf（幂等，不会重复写入）"
+        echo "  grep -q '\\[network\\]' /etc/wsl.conf 2>/dev/null || sudo bash -c 'echo -e \"\\n[network]\\ngenerateResolvConf = false\" >> /etc/wsl.conf'"
+        echo "  # 2. 手写 DNS"
+        echo "  sudo rm -f /etc/resolv.conf"
         echo "  sudo bash -c 'echo -e \"nameserver 8.8.8.8\\nnameserver 8.8.4.4\" > /etc/resolv.conf'"
         echo ""
         echo "修复后重新运行本脚本"
@@ -268,14 +270,12 @@ if [ ! -f "$PROFILE_SCRIPT" ]; then
     echo "→ 写入代理环境变量到 /etc/profile.d/ (所有用户生效)..."
     sudo bash -c "cat > $PROFILE_SCRIPT" << 'PROFILE_EOF'
 # Clash Meta 代理环境变量（由 clash-setup.sh 自动添加）
-# 当 Clash 进程运行时，所有用户的新 shell 自动设置代理环境变量
-if pgrep -x clash > /dev/null 2>&1; then
-    export http_proxy="http://127.0.0.1:7890"
-    export https_proxy="http://127.0.0.1:7890"
-    export HTTP_PROXY="http://127.0.0.1:7890"
-    export HTTPS_PROXY="http://127.0.0.1:7890"
-    export no_proxy="localhost,127.0.0.1,::1"
-fi
+# 所有用户的新 login shell 自动设置代理环境变量（配合开机自启使用）
+export http_proxy="http://127.0.0.1:7890"
+export https_proxy="http://127.0.0.1:7890"
+export HTTP_PROXY="http://127.0.0.1:7890"
+export HTTPS_PROXY="http://127.0.0.1:7890"
+export no_proxy="localhost,127.0.0.1,::1"
 PROFILE_EOF
     echo "✓ 代理环境变量已写入 /etc/profile.d/clash-proxy.sh（所有用户生效）"
 else
@@ -286,6 +286,46 @@ fi
 git config --global http.proxy http://127.0.0.1:7890
 git config --global https.proxy http://127.0.0.1:7890
 echo "✓ Git 全局代理已配置"
+
+# 9. 配置开机自启（systemd）
+CLASH_BIN="$(realpath "$HOME/.local/bin/clash")"
+CLASH_CONFIG_DIR="$(realpath "$CLASH_DIR")"
+CLASH_SERVICE="/etc/systemd/system/clash.service"
+CURRENT_USER="$(whoami)"
+
+if command -v systemctl &>/dev/null && systemctl --version &>/dev/null 2>&1; then
+    if [ ! -f "$CLASH_SERVICE" ]; then
+        echo "→ 配置 systemd 开机自启..."
+        sudo bash -c "cat > $CLASH_SERVICE" << SERVICE_EOF
+[Unit]
+Description=Clash Meta Proxy Service
+After=network.target
+
+[Service]
+Type=simple
+User=${CURRENT_USER}
+ExecStart=${CLASH_BIN} -d ${CLASH_CONFIG_DIR}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+        sudo systemctl daemon-reload
+        sudo systemctl enable clash
+        echo "✓ Clash 已设为开机自启（systemctl enable clash）"
+    else
+        echo "✓ systemd 服务已存在"
+    fi
+else
+    echo "⚠ 未检测到 systemd，跳过开机自启配置"
+    if [ "$ENV_TYPE" = "wsl2" ]; then
+        echo "  WSL2 需要在 /etc/wsl.conf 中启用 systemd："
+        echo "    [boot]"
+        echo "    systemd=true"
+        echo "  启用后重启 WSL，再重新运行本脚本即可配置开机自启"
+    fi
+fi
 
 # 完成
 echo ""

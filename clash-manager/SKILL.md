@@ -5,6 +5,8 @@ description: Manage Clash Meta (Mihomo) proxy service for WSL/Ubuntu. Use when u
 
 # Clash Manager
 
+**重要：与用户交互时必须使用中文。所有提示、说明、错误信息均用中文输出。**
+
 Manage and deploy Clash Meta (Mihomo) proxy service in WSL/Ubuntu environments.
 
 ## End-to-End Setup Workflow
@@ -53,10 +55,9 @@ After this, user opens the web panel URL in browser.
 **Important: Yacd first-time use** — The panel may not auto-connect to the backend. If user sees an empty page or "Unauthorized" error:
 1. Look for a "切换后端" (Switch Backend) or gear icon in the panel
 2. Enter API Base URL and Secret:
-   - **WSL environment**: `http://<WSL_IP>:9090` (get IP from `clash-url.sh`)
-   - **Remote server**: `http://<SERVER_PUBLIC_IP>:9090` (use server's public IP, NOT `localhost`)
+   - **API Base URL**: WSL 环境填 `http://localhost:9090`，远程服务器填 `http://<SERVER_PUBLIC_IP>:9090`
    - **Secret**: `MySuperSecret123`
-   - **Why not localhost?** Yacd is a frontend app running in your browser. When you fill `localhost`, it refers to YOUR computer, not the server. Always use the server's actual IP address.
+   - **Why?** Yacd is a frontend app running in your browser. For WSL, `localhost` works because WSL and Windows share the loopback. For remote servers, you must use the server's public IP — `localhost` would point to your own machine.
 3. Click Add/Connect
 4. **If redirected to error page after connecting**, simply revisit the `/ui` URL to reload the panel
 
@@ -83,19 +84,19 @@ This is because Clash caches the proxy list locally. Without deleting the cache,
 
 The setup script automatically configures:
 
-1. **/etc/profile.d/clash-proxy.sh**: Adds conditional proxy env vars for **all users** — when Clash is running, every new shell (including shells spawned by opencode/claude-code) automatically gets `http_proxy`/`https_proxy` set. When Clash is stopped, env vars are not set.
-2. **Git global proxy**: `git config --global http.proxy` is set for the user who runs setup (typically root).
-3. **Clash daemon**: Runs as background process, persists across terminal sessions. No need to restart when opening new terminals.
+1. **/etc/profile.d/clash-proxy.sh**: Unconditionally sets proxy env vars (`http_proxy`/`https_proxy` etc.) for **all users**. Every new login shell automatically gets proxy environment variables, no conditional check needed (designed to work with autostart).
+2. **Git global proxy**: `git config --global http.proxy` is set for the user who runs setup.
+3. **systemd autostart**: Creates `/etc/systemd/system/clash.service` and enables it. Clash starts automatically on boot. If systemd is not available (e.g., older WSL2), the script will prompt the user to enable systemd in wsl.conf.
 
 **Multi-user setup**: If Clash is installed by root (e.g., via SSH as root), all users can use the proxy through port 7890 and access the web panel on port 9090. However, only root can manage Clash (start/stop/configure). This is the recommended setup for servers.
 
-So: Clash 启动一次就行，新开终端/SSH 会话不需要重新启动。代理环境变量通过 /etc/profile.d/ 自动注入到所有用户。
+So: Clash 开机自启，新开终端/SSH 会话不需要任何操作，代理环境变量通过 /etc/profile.d/ 无条件注入到所有用户。
 
 ### Using proxy in opencode/claude-code
 
 All scripts use the fixed proxy port 7890.
 
-Each bash command in opencode runs in a separate shell. Since /etc/profile.d/ is sourced, proxy env vars are available IF Clash is running. For explicit proxy usage:
+Each bash command in opencode runs in a separate shell. Since /etc/profile.d/ is sourced, proxy env vars are always available. For explicit proxy usage:
 
 ```bash
 # curl: use --proxy flag (most reliable)
@@ -134,15 +135,16 @@ curl --proxy http://127.0.0.1:7890 -I https://google.com
 - It will suggest the DNS fix commands automatically
 - Manual fix if needed:
   ```bash
-  sudo bash -c 'echo -e "\n[network]\ngenerateResolvConf = false" >> /etc/wsl.conf'
-  sudo rm /etc/resolv.conf
+  # 幂等写入，不会重复追加 [network] 段
+  grep -q '\[network\]' /etc/wsl.conf 2>/dev/null || sudo bash -c 'echo -e "\n[network]\ngenerateResolvConf = false" >> /etc/wsl.conf'
+  sudo rm -f /etc/resolv.conf
   sudo bash -c 'echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" > /etc/resolv.conf'
   ```
 
 **Yacd panel shows empty / no proxies / "Unauthorized":**
 - This is normal on first use. The panel needs to be manually connected to the backend.
 - Click "切换后端" (Switch Backend) or the gear icon, enter API Base URL and Secret (`MySuperSecret123`), then click Add.
-  - WSL: use `http://<WSL_IP>:9090`
+  - WSL: use `http://localhost:9090`
   - Remote server: use `http://<SERVER_PUBLIC_IP>:9090` (NOT `localhost` — Yacd runs in your browser, so `localhost` points to your local machine)
 - If the page redirects to an error page after switching backend, revisit `http://<IP>:9090/ui` to reload the panel.
 
