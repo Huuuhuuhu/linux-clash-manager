@@ -3,7 +3,13 @@
 # 用法: bash clash-setup.sh [--proxy http://host:port]
 set -e
 
+# 修复所有脚本的 Windows 换行符
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if command -v dos2unix &>/dev/null; then
+    find "$SKILL_DIR/scripts" -name "*.sh" -exec dos2unix {} \; 2>/dev/null || true
+else
+    find "$SKILL_DIR/scripts" -name "*.sh" -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLASH_DIR="$HOME/.config/clash"
 
@@ -224,6 +230,42 @@ if [ -f "$CLASH_DIR/config.yaml" ]; then
 else
     cp "$SKILL_DIR/assets/clash-config.yaml" "$CLASH_DIR/config.yaml"
     echo "✓ 配置模板已复制"
+
+    # 检测端口占用并自动调整
+    echo "→ 检测端口占用..."
+    MIXED_PORT=7890
+    HTTP_PORT=7892
+    SOCKS_PORT=7891
+
+    # 检查 7890 是否被占用
+    if ss -tlnp 2>/dev/null | grep -q ":7890 " || netstat -tlnp 2>/dev/null | grep -q ":7890 "; then
+        OCCUPIED_BY=$(ss -tlnp 2>/dev/null | grep ":7890 " | head -1 || netstat -tlnp 2>/dev/null | grep ":7890 " | head -1)
+        echo ""
+        echo "⚠ 警告：端口 7890 已被占用"
+        echo "  占用进程: $OCCUPIED_BY"
+        echo ""
+        echo "  这可能是："
+        echo "    - SSH 反向隧道（用于安装时的临时代理）"
+        echo "    - 其他 Clash 实例"
+        echo "    - 其他代理软件"
+        echo ""
+        echo "  建议："
+        echo "    1. 如果是 SSH 隧道，可以断开后重新运行本脚本"
+        echo "    2. 或者使用其他端口（将自动配置为 7893）"
+        echo ""
+        read -p "  是否使用 7893 作为混合端口？[Y/n] " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            MIXED_PORT=7893
+            sed -i "s/^mixed-port: 7890/mixed-port: 7893/" "$CLASH_DIR/config.yaml"
+            echo "✓ 已将 mixed-port 改为 7893"
+        else
+            echo "✗ 安装中止，请先释放 7890 端口"
+            exit 1
+        fi
+    fi
+
+    echo "✓ 端口配置: mixed-port=$MIXED_PORT, http=$HTTP_PORT, socks=$SOCKS_PORT"
 fi
 
 # 5. 下载 Yacd 面板（使用 python3 zipfile 解压，不依赖 unzip）

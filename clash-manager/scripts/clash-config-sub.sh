@@ -70,6 +70,14 @@ if grep -q "$SUB_URL" "$CONFIG_FILE"; then
         echo ""
         echo "→ You can now start Clash:"
         echo "  clash-start"
+        echo ""
+        echo "启动后访问 Web 面板："
+        echo "  - WSL 环境: http://localhost:9090/ui"
+        echo "  - 远程服务器: http://<服务器公网IP>:9090/ui"
+        echo ""
+        echo "首次使用需要手动连接后端（点击「切换后端」）："
+        echo "  API Base URL: WSL 填 http://localhost:9090，服务器填 http://<公网IP>:9090"
+        echo "  Secret: MySuperSecret123"
     fi
 else
     echo "✗ Failed to configure subscription URL"
