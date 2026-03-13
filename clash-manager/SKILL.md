@@ -29,39 +29,73 @@ If network is blocked, the script provides environment-specific guidance:
 
 ### Setup Sequence
 
-1. Run setup script:
+Follow these steps and provide clear guidance to the user at each stage:
+
+1. **Run setup script:**
 ```bash
 bash <skill-dir>/scripts/clash-setup.sh
 ```
-2. Ask user for their subscription URL, then configure it:
+
+2. **Ask user for their subscription URL, then configure it:**
 ```bash
 bash <skill-dir>/scripts/clash-config-sub.sh "USER_PROVIDED_URL"
 ```
-3. Start Clash:
+
+3. **Start Clash:**
 ```bash
 bash <skill-dir>/scripts/clash-start.sh
 ```
-4. Show user the web panel URL and remind them the Secret (default: `MySuperSecret123`):
-```bash
-bash <skill-dir>/scripts/clash-url.sh
+
+4. **After starting Clash, immediately tell the user how to access the Web panel:**
+
+Detect the environment first (check `/proc/version` for "microsoft" or "WSL" to determine if it's WSL2).
+
+Then tell the user in Chinese:
+
+**For WSL environment:**
 ```
-5. Verify proxy works:
+Clash 已启动成功！现在打开浏览器访问 Web 面板：
+
+面板地址：http://localhost:9090/ui
+
+首次使用需要手动连接后端：
+1. 点击页面上的「切换后端」或齿轮图标
+2. 填入以下信息：
+   - API Base URL: http://localhost:9090
+   - Secret: MySuperSecret123
+3. 点击「添加」或「连接」
+
+连接成功后，选择一个节点即可开始使用代理。
+```
+
+**For remote server environment:**
+```
+Clash 已启动成功！现在打开浏览器访问 Web 面板：
+
+面板地址：http://<服务器公网IP>:9090/ui
+
+首次使用需要手动连接后端：
+1. 点击页面上的「切换后端」或齿轮图标
+2. 填入以下信息：
+   - API Base URL: http://<服务器公网IP>:9090
+   - Secret: MySuperSecret123
+3. 点击「添加」或「连接」
+
+注意：这里必须填服务器的公网 IP，不能填 localhost（因为 Yacd 面板是在你本地浏览器运行的，localhost 会指向你自己的电脑）
+
+连接成功后，选择一个节点即可开始使用代理。
+```
+
+5. **Verify proxy works (optional):**
 ```bash
 curl --proxy http://127.0.0.1:7890 -I https://google.com
 ```
 
-After this, user opens the web panel URL in browser.
+## Important Notes
 
-**Important: Yacd first-time use** — The panel may not auto-connect to the backend. If user sees an empty page or "Unauthorized" error:
-1. Look for a "切换后端" (Switch Backend) or gear icon in the panel
-2. Enter API Base URL and Secret:
-   - **API Base URL**: WSL 环境填 `http://localhost:9090`，远程服务器填 `http://<SERVER_PUBLIC_IP>:9090`
-   - **Secret**: `MySuperSecret123`
-   - **Why?** Yacd is a frontend app running in your browser. For WSL, `localhost` works because WSL and Windows share the loopback. For remote servers, you must use the server's public IP — `localhost` would point to your own machine.
-3. Click Add/Connect
-4. **If redirected to error page after connecting**, simply revisit the `/ui` URL to reload the panel
-
-Once connected, select a node and proxy is ready.
+- Do NOT rely on script output to convey critical information to the user. Always extract and present key information (URLs, secrets, configuration steps) directly in your response.
+- Always detect the environment (WSL vs server) and provide tailored instructions.
+- The Web panel connection is a common pain point - make sure to explain it clearly every time.
 
 ## Quick Commands
 
