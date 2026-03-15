@@ -40,7 +40,6 @@ else
         PID=$(cat "$CLASH_PID_FILE")
         if ps -p "$PID" > /dev/null 2>&1; then
             echo "⚠ Clash is already running (PID: $PID)"
-            bash "$SCRIPT_DIR/clash-url.sh"
             exit 0
         fi
     fi
@@ -63,4 +62,5 @@ else
 fi
 
 echo ""
-bash "$SCRIPT_DIR/clash-url.sh"
+echo "Web 面板: http://localhost:9090/ui"
+echo "Proxy: 127.0.0.1:7890"

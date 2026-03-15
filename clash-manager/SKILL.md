@@ -102,8 +102,6 @@ curl --proxy http://127.0.0.1:7890 -I https://google.com
 Start: `bash <skill-dir>/scripts/clash-start.sh`
 Stop: `bash <skill-dir>/scripts/clash-stop.sh`
 Status: `bash <skill-dir>/scripts/clash-status.sh`
-Toggle: `bash <skill-dir>/scripts/clash-toggle.sh`
-Web panel URL: `bash <skill-dir>/scripts/clash-url.sh`
 Configure subscription: `bash <skill-dir>/scripts/clash-config-sub.sh "URL"`
 
 **Important: After switching subscription URL**, you must delete the cached proxy provider file and restart Clash:
@@ -119,12 +117,13 @@ This is because Clash caches the proxy list locally. Without deleting the cache,
 The setup script automatically configures:
 
 1. **/etc/profile.d/clash-proxy.sh**: Unconditionally sets proxy env vars (`http_proxy`/`https_proxy` etc.) for **all users**. Every new login shell automatically gets proxy environment variables, no conditional check needed (designed to work with autostart).
-2. **Git global proxy**: `git config --global http.proxy` is set for the user who runs setup.
-3. **systemd autostart**: Creates `/etc/systemd/system/clash.service` and enables it. Clash starts automatically on boot. If systemd is not available (e.g., older WSL2), the script will prompt the user to enable systemd in wsl.conf.
+2. **~/.config/environment.d/clash-proxy.conf**: Sets proxy env vars for **systemd user services** (e.g., openclaw-gateway). Uses `KEY=VALUE` format (no `export`). This ensures services managed by `systemctl --user` inherit proxy settings.
+3. **Git global proxy**: `git config --global http.proxy` is set for the user who runs setup.
+4. **systemd autostart**: Creates `/etc/systemd/system/clash.service` and enables it. Clash starts automatically on boot. If systemd is not available (e.g., older WSL2), the script will prompt the user to enable systemd in wsl.conf.
 
 **Multi-user setup**: If Clash is installed by root (e.g., via SSH as root), all users can use the proxy through port 7890 and access the web panel on port 9090. However, only root can manage Clash (start/stop/configure). This is the recommended setup for servers.
 
-So: Clash 开机自启，新开终端/SSH 会话不需要任何操作，代理环境变量通过 /etc/profile.d/ 无条件注入到所有用户。
+So: Clash 开机自启，新开终端/SSH 会话不需要任何操作，代理环境变量通过 /etc/profile.d/ 无条件注入到所有用户，systemd user service 通过 environment.d 获取代理变量。
 
 ### Using proxy in opencode/claude-code
 
@@ -147,7 +146,7 @@ curl --proxy http://127.0.0.1:7890 -I https://google.com
 ## Troubleshooting
 
 **Cannot access Web Panel from Windows:**
-- Run `clash-url.sh` to get correct WSL IP
+- Check Web panel at `http://localhost:9090/ui`
 - Ensure `external-controller` uses `0.0.0.0:9090`
 - Check Windows Firewall allows port 9090
 

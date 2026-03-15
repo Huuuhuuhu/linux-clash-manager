@@ -35,9 +35,6 @@ clash-manager/
 │   ├── clash-start.sh      # 启动
 │   ├── clash-stop.sh       # 停止
 │   ├── clash-status.sh     # 查看状态
-│   ├── clash-toggle.sh     # 切换开关
-│   ├── clash-url.sh        # 获取访问地址
-│   ├── clash-env.sh        # 环境变量管理
 │   └── clash-config-sub.sh # 配置订阅链接
 ├── assets/
 │   └── clash-config.yaml   # Clash 配置模板

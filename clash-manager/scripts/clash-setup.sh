@@ -3,13 +3,7 @@
 # 用法: bash clash-setup.sh [--proxy http://host:port]
 set -e
 
-# 修复所有脚本的 Windows 换行符
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-if command -v dos2unix &>/dev/null; then
-    find "$SKILL_DIR/scripts" -name "*.sh" -exec dos2unix {} \; 2>/dev/null || true
-else
-    find "$SKILL_DIR/scripts" -name "*.sh" -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
-fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLASH_DIR="$HOME/.config/clash"
 
@@ -95,7 +89,6 @@ case "$NETWORK_STATUS" in
         echo "如需管理 Clash，可使用以下命令："
         echo "  状态: bash $SCRIPT_DIR/clash-status.sh"
         echo "  停止: bash $SCRIPT_DIR/clash-stop.sh"
-        echo "  面板: bash $SCRIPT_DIR/clash-url.sh"
         exit 0
         ;;
     proxy)
@@ -322,6 +315,24 @@ PROFILE_EOF
     echo "✓ 代理环境变量已写入 /etc/profile.d/clash-proxy.sh（所有用户生效）"
 else
     echo "✓ /etc/profile.d/clash-proxy.sh 已存在"
+fi
+
+# 7.5 配置 systemd user service 代理环境变量
+ENV_D_DIR="$HOME/.config/environment.d"
+ENV_D_FILE="$ENV_D_DIR/clash-proxy.conf"
+if [ ! -f "$ENV_D_FILE" ]; then
+    echo "→ 写入代理环境变量到 environment.d（systemd user service 生效）..."
+    mkdir -p "$ENV_D_DIR"
+    cat > "$ENV_D_FILE" << 'ENVD_EOF'
+http_proxy=http://127.0.0.1:7890
+https_proxy=http://127.0.0.1:7890
+HTTP_PROXY=http://127.0.0.1:7890
+HTTPS_PROXY=http://127.0.0.1:7890
+no_proxy=localhost,127.0.0.1,::1
+ENVD_EOF
+    echo "✓ 代理环境变量已写入 ~/.config/environment.d/clash-proxy.conf"
+else
+    echo "✓ environment.d/clash-proxy.conf 已存在"
 fi
 
 # 8. 配置 git 全局代理
